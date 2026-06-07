@@ -1,23 +1,27 @@
-import React, { useState } from 'react';
-import { searchCities } from '../lib/weatherAPI';
+import React, { useState, useEffect } from 'react';
+import { searchCities, getUserLocation } from '../lib/weatherAPI';
 
 const SearchBar = ({ onSearch, loading }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleInputChange = async (e) => {
     const value = e.target.value;
     setQuery(value);
 
     if (value.length > 2) {
+      setIsSearching(true);
       try {
         const results = await searchCities(value);
-        setSuggestions(results);
+        setSuggestions(results.slice(0, 8));
         setShowSuggestions(true);
       } catch (error) {
         console.error('Search error:', error);
         setSuggestions([]);
+      } finally {
+        setIsSearching(false);
       }
     } else {
       setSuggestions([]);
@@ -36,6 +40,9 @@ const SearchBar = ({ onSearch, loading }) => {
     e.preventDefault();
     if (suggestions.length > 0) {
       handleSelectCity(suggestions[0]);
+    } else if (query.length > 0) {
+      // Try searching with the entered query
+      handleSelectCity({ name: query });
     }
   };
 
@@ -46,15 +53,17 @@ const SearchBar = ({ onSearch, loading }) => {
     }
 
     try {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        onSearch({ latitude, longitude, name: 'Your Location' });
-        setQuery('Your Location');
-        setSuggestions([]);
-        setShowSuggestions(false);
+      const position = await getUserLocation();
+      onSearch({
+        latitude: position.latitude,
+        longitude: position.longitude,
+        name: 'Your Location',
       });
+      setQuery('Your Location');
+      setSuggestions([]);
+      setShowSuggestions(false);
     } catch (error) {
-      alert('Unable to access your location');
+      alert('Unable to access your location: ' + error.message);
     }
   };
 
@@ -66,11 +75,17 @@ const SearchBar = ({ onSearch, loading }) => {
             type="text"
             value={query}
             onChange={handleInputChange}
-            placeholder="Search for a city..."
+            placeholder="🔍 Search for a city..."
             className="search-input"
-            disabled={loading}
+            disabled={loading || isSearching}
+            autoComplete="off"
           />
-          <button type="submit" className="search-button" disabled={loading}>
+          <button
+            type="submit"
+            className="search-button"
+            disabled={loading || isSearching}
+            title="Search"
+          >
             🔍
           </button>
           <button
@@ -93,7 +108,9 @@ const SearchBar = ({ onSearch, loading }) => {
                 onClick={() => handleSelectCity(city)}
               >
                 <span className="city-name">{city.name}</span>
-                {city.admin1 && <span className="city-region">, {city.admin1}</span>}
+                {city.admin1 && (
+                  <span className="city-region">, {city.admin1}</span>
+                )}
                 <span className="city-country">, {city.country}</span>
               </div>
             ))}

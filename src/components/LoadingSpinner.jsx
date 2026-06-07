@@ -7,7 +7,7 @@ const LoadingSpinner = () => (
       <div className="spinner-circle"></div>
       <div className="spinner-circle"></div>
     </div>
-    <p>Loading weather data...</p>
+    <p>Fetching weather data...</p>
   </div>
 );
 
